@@ -3,6 +3,7 @@ const express = require("express");
 const app = express();
 const User = require("./models/user");
 const bcrypt = require("bcrypt");
+const session = require("express-session");
 
 mongoose
   .connect("mongodb://localhost:27017/bcrypt", {
@@ -20,6 +21,7 @@ app.set("view engine", "ejs");
 app.set("views", "views");
 
 app.use(express.urlencoded({ extended: true }));
+app.use(session({ secret: "notagoodsectret" }));
 
 app.get("/", (req, res) => {
   res.send("This is home page");
@@ -36,6 +38,7 @@ app.post("/register", async (req, res) => {
     password: hash,
   });
   await user.save();
+  req.session.user_id = user._id;
   res.redirect("/");
 });
 
@@ -48,14 +51,24 @@ app.post("/login", async (req, res) => {
   const user = await User.findOne({ username });
   const isValid = await bcrypt.compare(password, user.password);
   if (isValid) {
-    res.send("Welcome");
+    req.session.user_id = user._id;
+    res.redirect("/secret");
   } else {
-    res.send("Invalid username or password");
+    res.redirect("/login");
   }
 });
 
+app.post("/logout", (req, res) => {
+  req.session.user_id = null;
+  req.session.destroy();
+  res.redirect("/login");
+});
+
 app.get("/secret", (req, res) => {
-  res.send("This is a secret page, you can only see this if you are logged in");
+  if (!req.session.user_id) {
+    return res.redirect("/login");
+  }
+  res.render("secret");
 });
 
 app.listen(3000, () => {
