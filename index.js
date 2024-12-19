@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const express = require("express");
 const app = express();
 const User = require("./models/user");
+const bcrypt = require("bcrypt");
 
 mongoose
   .connect("mongodb://localhost:27017/bcrypt", {
@@ -20,12 +21,37 @@ app.set("views", "views");
 
 app.use(express.urlencoded({ extended: true }));
 
+app.get("/", (req, res) => {
+  res.send("This is home page");
+});
 app.get("/register", (req, res) => {
   res.render("register");
 });
 
 app.post("/register", async (req, res) => {
-  res.send(req.body);
+  const { username, password } = req.body;
+  const hash = await bcrypt.hash(password, 12);
+  const user = new User({
+    username,
+    password: hash,
+  });
+  await user.save();
+  res.redirect("/");
+});
+
+app.get("/login", (req, res) => {
+  res.render("login");
+});
+
+app.post("/login", async (req, res) => {
+  const { username, password } = req.body;
+  const user = await User.findOne({ username });
+  const isValid = await bcrypt.compare(password, user.password);
+  if (isValid) {
+    res.send("Welcome");
+  } else {
+    res.send("Invalid username or password");
+  }
 });
 
 app.get("/secret", (req, res) => {
